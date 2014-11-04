@@ -1,0 +1,83 @@
+#!/usr/bin/python3
+
+RESTORE_SCRIPT = '''
+#!/bin/bash
+DB_NAME={db_name}
+read -p '請輸入資料庫管理者密碼: ' -s DB_PASS
+echo
+
+# 檢查若網站檔案存在則直接終止不覆寫
+if [ -e "/srv/www/{web_name}" -o -e "/etc/apache2/sites-available/{web_name}" ]; then
+    echo "網站檔案已存在，停止復原任務"
+    exit 1
+fi
+
+# 還原網站
+if [ -e "{backup_dir}/srv/www/{web_name}" ]; then
+    mv {backup_dir}/srv/www/{web_name} /srv/www/
+fi
+
+# 還原 apache2 設定
+if [ -e "{backup_dir}/etc/apache2/sites-available/{web_name}" ]; then
+    mv {backup_dir}/etc/apache2/sites-available/{web_name} /etc/apache2/sites-available
+    a2ensite {web_name}
+    /etc/init.d/apache2 restart
+fi
+
+# 還原資料庫
+if [ "$DB_NAME" != "None" ]; then
+    mysql -uroot -p"$DB_PASS" <<< "CREATE DATABASE {db_name} CHARSET UTF8"
+    mysql -uroot -p"$DB_PASS" <<< "GRANT ALL ON {db_name}.* TO {db_user}@localhost IDENTIFIED BY '{db_pass}'"
+    mysql -uroot -p"$DB_PASS" {db_name} < {web_name}.sql
+fi
+'''.strip()
+
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser(description='Web Backup Tool')
+    parser.add_argument('--backup-dir', help='備份檔產生的存放目錄', required=True)
+    parser.add_argument('--web-name', help='網站目錄名稱', required=True)
+    parser.add_argument('--db-name', help='資料庫名稱')
+    parser.add_argument('--db-user', help='資料庫帳號')
+    parser.add_argument('--db-pass', help='資料庫密碼')
+    return parser.parse_args()
+
+def main():
+    from datetime import datetime
+    from subprocess import call
+    import tarfile, os
+
+    args = parse_args()
+
+    now = datetime.now().strftime('%Y-%m-%d-%H-%M')
+    apache_path = os.path.join('/etc/apache2/sites-available/', args.web_name)
+    web_path = os.path.join('/srv/www/', args.web_name)
+    sql_path = os.path.join(args.backup_dir, '{}.sql'.format(args.web_name))
+    restore_script_content = RESTORE_SCRIPT.format(
+        web_name=args.web_name,
+        backup_dir=os.path.dirname(args.backup_dir),
+        db_name = args.db_name,
+        db_user = args.db_user,
+        db_pass = args.db_pass
+    )
+    restore_script_path = os.path.join(args.backup_dir, 'restore.sh')
+
+    if not os.path.exists(args.backup_dir): os.mkdir(args.backup_dir)
+
+    with tarfile.open('{0}/{1}-{2}.tar.bz2'.format(args.backup_dir, args.web_name, now), 'w:bz2') as tar:
+        if os.path.exists(apache_path): tar.add(apache_path)
+        if os.path.exists(web_path): tar.add(web_path)
+        if args.db_name is not None:
+            call('mysqldump -u{0} -p{1} {2} > {3}'.format(args.db_user, args.db_pass, args.db_name, sql_path), shell=True)
+            tar.add(sql_path, arcname=os.path.basename(sql_path))
+            # cleanup
+            os.remove(sql_path)
+        with open(restore_script_path, 'w') as f:
+            f.write(restore_script_content)
+        os.chmod(restore_script_path, 0o700)
+        tar.add(restore_script_path, arcname=os.path.basename(restore_script_path))
+        # cleanup
+        os.remove(restore_script_path)
+
+if __name__ == '__main__':
+    main()
