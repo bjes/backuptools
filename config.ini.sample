@@ -1,0 +1,13 @@
+[default]
+# 保留最新的備份檔案數量
+keep = 5
+
+# 備份來源
+src_dir = /srv/backup
+
+# 備份目的
+dst_dir = backup@172.17.100.24:./
+
+[activities.bjes.tp.edu.tw]
+
+[ekm.bjes.tp.edu.tw]
