@@ -1,4 +1,4 @@
-[default]
+[DEFAULT]
 # 保留最新的備份檔案數量
 keep = 5
 
