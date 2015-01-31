@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser('Keep Backups Tool')
+    parser.add_argument('--config', help='設定檔路徑', required=True)
+    return parser.parse_args()
+
+def main():
+    import configparser, subprocess
+    args = parse_args()
+    config = configparser.ConfigParser()
+    config.read(args.config)
+    for section in config.sections():
+        if section.lower() == 'default': continue
+        cmd = '/usr/bin/rsync "{}" "{}"'.format(
+            config[section].get('src_dir'), config[section].get('dst_dir')
+        )
+        subprocess.call(cmd, shell=True)
+
+if __name__ == '__main__':
+    main()

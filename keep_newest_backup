@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser('Keep Backups Tool')
+    parser.add_argument('--config', help='設定檔路徑', required=True)
+    return parser.parse_args()
+
+def main():
+    import configparser, glob, os, subprocess
+    args = parse_args()
+    config = configparser.ConfigParser()
+    config.read(args.config)
+    for section in config.sections():
+        if section.lower() == 'default': continue
+        wildcard = '{}/{}*'.format(config[section].get('src_dir').rstrip('/'), section)
+        file_list = glob.glob(wildcard)
+        file_list.sort(reverse=True)
+        for outdated_filename in file_list[config[section].getint('keep'):]:
+            os.remove(outdated_filename)
+
+if __name__ == '__main__':
+    main()
