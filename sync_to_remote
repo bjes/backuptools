@@ -12,10 +12,11 @@ def main():
     config = configparser.ConfigParser()
     config.read(args.config)
     for section in config.sections():
-        if section.lower() == 'default': continue
-        cmd = '/usr/bin/rsync "{}" "{}"'.format(
+        if section == 'DEFAULT': continue
+        cmd = '/usr/bin/rsync -r "{}" "{}"'.format(
             config[section].get('src_dir'), config[section].get('dst_dir')
         )
+        print(cmd)
         subprocess.call(cmd, shell=True)
 
 if __name__ == '__main__':
