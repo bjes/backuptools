@@ -12,7 +12,7 @@ def main():
     config = configparser.ConfigParser()
     config.read(args.config)
     for section in config.sections():
-        if section.lower() == 'default': continue
+        if section == 'DEFAULT': continue
         wildcard = '{}/{}*'.format(config[section].get('src_dir').rstrip('/'), section)
         file_list = glob.glob(wildcard)
         file_list.sort(reverse=True)
